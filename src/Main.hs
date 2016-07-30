@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 
 import React.Flux
 
@@ -9,6 +10,8 @@ import Control.Monad.State
 import Control.Monad.Except
 import Data.List
 import qualified Data.Text as T
+
+import Data.Typeable (Typeable)
 
 data Color = Red | Green | Blue deriving (Enum, Eq)
 instance Show Color where
@@ -39,7 +42,7 @@ data Card = Card {
   , cardNumber :: Number
   , cardShape :: Shape
   , cardFill :: Fill
-  } deriving (Eq)
+  } deriving (Eq, Typeable)
 
 instance Show Card where
   show (Card c n s f) = "(" ++ show c ++ " " ++ show n ++ " " ++ show s ++ " " ++ show f ++ ")"
@@ -134,17 +137,40 @@ randomList n = execStateT (sequence $ replicate n newNumber) []
 cardsApp :: ReactView ()
 cardsApp = defineControllerView "cards app" cardsStore $ \cardState () ->
   div_ $ do
-    card_
-    -- card_ (allCards !! 0)
+    h1_ "Welcome to cards game. This is cards game."
+    svg_ (mapM_ card_ allCards)
 
-card :: ReactView ()
-card = defineView "card" $ \() ->
-  div_ (h1_ (elemText "hello world"))
---  div_ (p_ (elemText $ T.pack $ show c))
+card :: ReactView Card
+card = defineView "card" $ \c ->
+  case c of
+    Card c n Diamond f -> diamond_ c f n
+    Card c n Box f -> box_ c f n
+    Card c n Circle f -> Main.circle_ c f n
+
+diamond :: Color -> Fill -> Number -> ReactView ()
+diamond c f n = defineView "diamond" $ \() ->
+    g_ (text_ $ elemText $ T.pack $ "DIAMOND" ++ show c ++ show f ++ show n)
+
+diamond_ :: Color -> Fill -> Number -> ReactElementM eventHandler ()
+diamond_ c f n = view (diamond c f n) () mempty
+
+circle :: Color -> Fill -> Number -> ReactView ()
+circle c f n = defineView "circle" $ \() ->
+    g_ (text_ $ elemText $ T.pack $ "CIRCLE" ++ show c ++ show f ++ show n)
+
+circle_ :: Color -> Fill -> Number -> ReactElementM eventHandler ()
+circle_ c f n = view (circle c f n) () mempty
+
+box :: Color -> Fill -> Number -> ReactView ()
+box c f n = defineView "box" $ \() ->
+    g_ (text_ $ elemText $ T.pack $ "BOX" ++ show c ++ show f ++ show n)
+
+box_ :: Color -> Fill -> Number -> ReactElementM eventHandler ()
+box_ c f n = view (box c f n) () mempty
 
 
-card_ :: ReactElementM eventHandler ()
-card_ = view card () mempty
+card_ :: Card -> ReactElementM eventHandler ()
+card_ !c = view card c mempty
 
 -- game :: ReactView Game
 -- game = defineView "game" $ \(Game _ d _) ->
