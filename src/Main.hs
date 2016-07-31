@@ -134,11 +134,11 @@ randomList :: MonadRandom m => Int -> m [Int]
 randomList n = execStateT (sequence $ replicate n newNumber) []
 
 -- react-flux
-cardsApp :: ReactView ()
-cardsApp = defineControllerView "cards app" cardsStore $ \cardState () ->
+cardsApp :: ReactView Game
+cardsApp = defineControllerView "cards app" cardsStore $ \cardState g ->
   div_ $ do
     h1_ "Welcome to cards game. This is cards game."
-    svg_ (mapM_ card_ allCards)
+    svg_ (mapM_ card_ $ gameDealt g)
 
 card :: ReactView Card
 card = defineView "card" $ \c ->
@@ -149,21 +149,30 @@ card = defineView "card" $ \c ->
 
 diamond :: Color -> Fill -> Number -> ReactView ()
 diamond c f n = defineView "diamond" $ \() ->
-    g_ (text_ $ elemText $ T.pack $ "DIAMOND" ++ show c ++ show f ++ show n)
+    g_ [ "className" @= show Diamond
+       , "color" @= show c
+       , "fill" @= show f
+       , "number" @= show n] (text_ $ elemText $ T.pack $ "DIAMOND" ++ show c ++ show f ++ show n)
 
 diamond_ :: Color -> Fill -> Number -> ReactElementM eventHandler ()
 diamond_ c f n = view (diamond c f n) () mempty
 
 circle :: Color -> Fill -> Number -> ReactView ()
 circle c f n = defineView "circle" $ \() ->
-    g_ (text_ $ elemText $ T.pack $ "CIRCLE" ++ show c ++ show f ++ show n)
+    g_ [ "className" @= show Circle
+       , "color" @= show c
+       , "fill" @= show f
+       , "number" @= show n] (React.Flux.circle_ ["r" $= "40"] "test")
 
 circle_ :: Color -> Fill -> Number -> ReactElementM eventHandler ()
 circle_ c f n = view (circle c f n) () mempty
 
 box :: Color -> Fill -> Number -> ReactView ()
 box c f n = defineView "box" $ \() ->
-    g_ (text_ $ elemText $ T.pack $ "BOX" ++ show c ++ show f ++ show n)
+    g_ [ "className" @= show Box
+       , "color" @= show c
+       , "fill" @= show f
+       , "number" @= show n] (text_ $ elemText $ T.pack $ "BOX" ++ show c ++ show f ++ show n)
 
 box_ :: Color -> Fill -> Number -> ReactElementM eventHandler ()
 box_ c f n = view (box c f n) () mempty
@@ -194,8 +203,8 @@ instance StoreData Game where
 -- main
 main :: IO ()
 main = do
-  -- g <- initGame
-  -- putStrLn $ show g
-  reactRender "flux-test" cardsApp ()
+  g <- initGame
+  putStrLn $ show g
+  reactRender "flux-test" cardsApp g
 
 
