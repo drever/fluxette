@@ -138,48 +138,51 @@ cardsApp :: ReactView Game
 cardsApp = defineControllerView "cards app" cardsStore $ \cardState g ->
   div_ $ do
     h1_ "Welcome to cards game. This is cards game."
-    svg_ (mapM_ card_ $ gameDealt g)
+    svg_ (mapM_ card_ $ (zip [1..] (gameDealt g)))
 
-card :: ReactView Card
-card = defineView "card" $ \c ->
+card :: ReactView (Int, Card)
+card = defineView "card" $ \(i, c) ->
   case c of
-    Card c n Diamond f -> diamond_ c f n
-    Card c n Box f -> box_ c f n
-    Card c n Circle f -> Main.circle_ c f n
+    Card c n Diamond f -> diamond_ i c f n
+    Card c n Box f -> box_ i c f n
+    Card c n Circle f -> Main.circle_ i c f n
 
-diamond :: Color -> Fill -> Number -> ReactView ()
-diamond c f n = defineView "diamond" $ \() ->
+card_ :: (Int, Card) -> ReactElementM eventHandler ()
+card_ !c = viewWithIKey card (fst c) c mempty
+
+diamond :: Int -> Color -> Fill -> Number -> ReactView ()
+diamond i c f n = defineView "diamond" $ \() ->
     g_ [ "className" @= show Diamond
        , "color" @= show c
        , "fill" @= show f
-       , "number" @= show n] (text_ $ elemText $ T.pack $ "DIAMOND" ++ show c ++ show f ++ show n)
+       , "number" @= show n
+       , "id" @= show i] (text_ $ elemText $ T.pack $ "DIAMOND" ++ show c ++ show f ++ show n)
 
-diamond_ :: Color -> Fill -> Number -> ReactElementM eventHandler ()
-diamond_ c f n = view (diamond c f n) () mempty
+diamond_ :: Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
+diamond_ i c f n = view (diamond i c f n) () mempty
 
-circle :: Color -> Fill -> Number -> ReactView ()
-circle c f n = defineView "circle" $ \() ->
+circle :: Int -> Color -> Fill -> Number -> ReactView ()
+circle i c f n = defineView "circle" $ \() ->
     g_ [ "className" @= show Circle
-       , "color" @= show c
+       , "className" @= ("color" ++ show c)
        , "fill" @= show f
-       , "number" @= show n] (React.Flux.circle_ ["r" $= "40"] "test")
+       , "number" @= show n
+       , "id" @= show i] (React.Flux.circle_ ["r" $= "40"] "test")
 
-circle_ :: Color -> Fill -> Number -> ReactElementM eventHandler ()
-circle_ c f n = view (circle c f n) () mempty
+circle_ :: Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
+circle_ i c f n = view (circle i c f n) () mempty
 
-box :: Color -> Fill -> Number -> ReactView ()
-box c f n = defineView "box" $ \() ->
+box :: Int -> Color -> Fill -> Number -> ReactView ()
+box i c f n = defineView "box" $ \() ->
     g_ [ "className" @= show Box
        , "color" @= show c
        , "fill" @= show f
-       , "number" @= show n] (text_ $ elemText $ T.pack $ "BOX" ++ show c ++ show f ++ show n)
+       , "number" @= show n
+       , "id" @= show i] (text_ $ elemText $ T.pack $ "BOX" ++ show c ++ show f ++ show n)
 
-box_ :: Color -> Fill -> Number -> ReactElementM eventHandler ()
-box_ c f n = view (box c f n) () mempty
+box_ :: Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
+box_ i c f n = view (box i c f n) () mempty
 
-
-card_ :: Card -> ReactElementM eventHandler ()
-card_ !c = view card c mempty
 
 -- game :: ReactView Game
 -- game = defineView "game" $ \(Game _ d _) ->
