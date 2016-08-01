@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 import React.Flux
 
@@ -12,26 +14,28 @@ import Data.List
 import qualified Data.Text as T
 
 import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
+import Control.DeepSeq
 
-data Color = Red | Green | Blue deriving (Enum, Eq)
+data Color = Red | Green | Blue deriving (Enum, Eq, NFData, Generic)
 instance Show Color where
   show Red = "R"
   show Green = "G"
   show Blue = "B"
 
-data Number = One | Two | Three deriving (Enum, Eq)
+data Number = One | Two | Three deriving (Enum, Eq, NFData, Generic)
 instance Show Number where
   show One = "1"
   show Two = "2"
   show Three = "3"
 
-data Shape = Circle | Diamond | Box deriving (Enum, Eq)
+data Shape = Circle | Diamond | Box deriving (Enum, Eq, NFData, Generic)
 instance Show Shape where
   show Circle = "o"
   show Diamond = "d"
   show Box = "b"
 
-data Fill = Empty | Half | Full deriving (Enum, Eq)
+data Fill = Empty | Half | Full deriving (Enum, Eq, NFData, Generic)
 instance Show Fill where
   show Empty = "C"
   show Half = "E"
@@ -42,7 +46,7 @@ data Card = Card {
   , cardNumber :: Number
   , cardShape :: Shape
   , cardFill :: Fill
-  } deriving (Eq, Typeable)
+  } deriving (Eq, Typeable, NFData, Generic)
 
 instance Show Card where
   show (Card c n s f) = "(" ++ show c ++ " " ++ show n ++ " " ++ show s ++ " " ++ show f ++ ")"
@@ -58,7 +62,7 @@ data Game = Game {
     gameAll :: [Card]
   , gameDealt :: [Card]
   , gameConsumed :: [Card]
-  }
+  } deriving (Generic, NFData)
 
 instance Show Game where
   show (Game a (a1:a2:a3:b1:b2:b3:c1:c2:c3:d1:d2:d3:[]) c) =
@@ -147,12 +151,12 @@ jsColor Red = "rgb(255, 0, 0)"
 jsColor Green = "rgb(0, 255, 0)"
 jsColor Blue = "rgb(0, 0, 255)"
 
-cardsApp :: ReactView GameState
-cardsApp = defineControllerView "cards app" cardsStore $ \cardState (GameState g s) ->
+cardsApp :: ReactView ()
+cardsApp = defineControllerView "cards app" cardsStore $ \cardState () ->
   div_ $ do
     h1_ "Welcome to cards game. This is cards game. Test 123"
     svg_ [ "width" $= "1000"
-         , "height" $= "1000" ] (mapM_ card_ $ (zip [1..] (map (\c -> (c `elem` s, c)) (gameDealt g))))
+         , "height" $= "1000" ] (mapM_ card_ $ (zip [1..] (map (\c -> (c `elem` (gameStateSelection cardState), c)) (gameDealt $ gameStateGame cardState))))
 
 card :: ReactView (Int, (Bool, Card))
 card = defineView "card" $ \(i, (s, c)) ->
@@ -166,7 +170,7 @@ card_ !a@(i, (s, c)) = viewWithIKey card i a mempty
 
 diamond :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
 diamond s i c f n = defineView "diamond" $ \() ->
-    g_ (cardProps i Diamond c f n)
+    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Diamond f))):cardProps i Diamond c f n)
       (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
           One -> diam cx 40
@@ -188,7 +192,7 @@ diamond_ s i c f n = view (diamond s i c f n) () mempty
 
 circle :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
 circle s i c f n = defineView "circle" $ \() ->
-    g_ (cardProps i Circle c f n)
+    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Circle f))):cardProps i Circle c f n)
       (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
            One -> circ 35 50
@@ -216,7 +220,7 @@ circle_ s i c f n = view (circle s i c f n) () mempty
 
 box :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
 box s i c f n = defineView "box" $ \() ->
-    g_ (cardProps i Box c f n)
+    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Box f))):cardProps i Box c f n)
       (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
          One -> rect cx 40
@@ -248,28 +252,39 @@ box_ s i c f n = view (box s i c f n) () mempty
 cardsStore :: ReactStore GameState
 cardsStore = do
   let g = runRand initGame (mkStdGen 0)
-  mkStore (GameState (fst g) [(gameDealt (fst g) !! 0), (gameDealt (fst g) !! 1)])
+  mkStore (GameState (fst g) [])
 
-data GameAction = GameCreate
+data GameAction =
+    GameCreate
+  | GameSelect Card deriving (Typeable, Generic, NFData)
 
 data GameState = GameState {
     gameStateGame :: Game
   , gameStateSelection :: [Card]
-  } deriving (Show)
+  } deriving (Show, Typeable, Generic, NFData)
 
 instance StoreData GameState where
   type StoreAction GameState = GameAction
   transform action (GameState g s) = do
-    newGame <- case action of
-                 GameCreate -> initGame
-    return (GameState newGame [gameDealt g !! 0])
+    newGameState <- case action of
+                      GameCreate -> do
+                                       g <- initGame
+                                       return $ GameState g []
+                      (GameSelect c) -> do putStrLn $ "selected card: " ++ show c
+                                           return $ if c `elem` s
+                                             then GameState g (filter (/=c) s)
+                                             else GameState g (if length s < 3 then c:s else s)
+    putStrLn $ show newGameState
+    return newGameState
+
+-- dispatcher
+dispatchGame :: GameAction -> [SomeStoreAction]
+dispatchGame a = [SomeStoreAction cardsStore a]
 
 -- main
 main :: IO ()
 main = do
-  g <- initGame
-  putStrLn $ show g
-  reactRender "flux-test" cardsApp (GameState g [gameDealt g !! 0, gameDealt g !! 1, gameDealt g !! 2])
+  reactRender "flux-test" cardsApp ()
   -- x <- reactRenderToString True cardsApp g
   -- putStrLn (T.unpack x)
 
