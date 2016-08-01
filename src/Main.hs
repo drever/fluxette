@@ -61,14 +61,16 @@ data Game = Game {
   }
 
 instance Show Game where
-  show (Game a (a1:a2:a3:a4:b1:b2:b3:b4:c1:c2:c3:c4:d1:d2:d3:d4:[]) c) =
-    show a1 ++ " " ++ show a2 ++ " " ++ show a3 ++ " " ++ show a4 ++ "\n" ++
-    show b1 ++ " " ++ show b2 ++ " " ++ show b3 ++ " " ++ show b4 ++ "\n" ++
-    show c1 ++ " " ++ show c2 ++ " " ++ show c3 ++ " " ++ show c4 ++ "\n" ++
-    show d1 ++ " " ++ show d2 ++ " " ++ show d3 ++ " " ++ show d4 ++ "\n"
+  show (Game a (a1:a2:a3:b1:b2:b3:c1:c2:c3:d1:d2:d3:[]) c) =
+    unlines (map unwords [
+        map show [a1, a2, a3]
+      , map show [b1, b2, b3]
+      , map show [c1, c2, c3]
+      , map show [d1, d2, d3]])
+  show _ = "Error: Malformed card game"
 
 instance Enum Card where
-  toEnum i = if i >= 0 && i < 81
+  toEnum i = if i >= cardMinBound && i <= cardMaxBound
                 then allCards !! i
                 else error $ "toEnum{Game}: tag (" ++ show i ++ ") is outside of enumeration's range (" ++ show cardMinBound ++ ", " ++ show cardMaxBound ++ ")"
   fromEnum c = case findIndex (==c) allCards of
@@ -87,7 +89,7 @@ initGame = do
   return $ Game allCards dealt []
      where getDealt :: (MonadRandom m) => m [Card]
            getDealt = do
-             d <- (map toEnum) `fmap` randomList 16
+             d <- (map toEnum) `fmap` randomList 12
              if null $ filter isSolution (allCombinations d)
                 then getDealt
                 else return d
@@ -125,7 +127,7 @@ testNonSolutions = [ (Card Red One Diamond Full, Card Red One Box Empty, Card Gr
 newNumber :: (MonadRandom m, MonadState [Int] m) => m ()
 newNumber = do
   d <- get
-  n <- getRandomR (0, 80)
+  n <- getRandomR (cardMinBound, cardMaxBound)
   if n `elem` d
      then newNumber
      else put (n:d)
@@ -137,7 +139,7 @@ randomList n = execStateT (sequence $ replicate n newNumber) []
 
 fillAlpha :: Fill -> String
 fillAlpha Full = "1"
-fillAlpha Half = "0.5"
+fillAlpha Half = "0.2"
 fillAlpha Empty = "0"
 
 jsColor :: Color -> String
@@ -145,31 +147,31 @@ jsColor Red = "rgb(255, 0, 0)"
 jsColor Green = "rgb(0, 255, 0)"
 jsColor Blue = "rgb(0, 0, 255)"
 
-cardsApp :: ReactView Game
-cardsApp = defineControllerView "cards app" cardsStore $ \cardState g ->
+cardsApp :: ReactView GameState
+cardsApp = defineControllerView "cards app" cardsStore $ \cardState (GameState g s) ->
   div_ $ do
-    h1_ "Welcome to cards game. This is cards game."
+    h1_ "Welcome to cards game. This is cards game. Test 123"
     svg_ [ "width" $= "1000"
-         , "height" $= "1000" ] (mapM_ card_ $ (zip [1..] (gameDealt g)))
+         , "height" $= "1000" ] (mapM_ card_ $ (zip [1..] (map (\c -> (c `elem` s, c)) (gameDealt g))))
 
-card :: ReactView (Int, Card)
-card = defineView "card" $ \(i, c) ->
+card :: ReactView (Int, (Bool, Card))
+card = defineView "card" $ \(i, (s, c)) ->
   case c of
-    Card c n Diamond f -> diamond_ i c f n
-    Card c n Box f -> box_ i c f n
-    Card c n Circle f -> Main.circle_ i c f n
+    Card c n Diamond f -> diamond_ s i c f n
+    Card c n Box f -> box_ s i c f n
+    Card c n Circle f -> Main.circle_ s i c f n
 
-card_ :: (Int, Card) -> ReactElementM eventHandler ()
-card_ !c = viewWithIKey card (fst c) c mempty
+card_ :: (Int, (Bool, Card)) -> ReactElementM eventHandler ()
+card_ !a@(i, (s, c)) = viewWithIKey card i a mempty
 
-diamond :: Int -> Color -> Fill -> Number -> ReactView ()
-diamond i c f n = defineView "diamond" $ \() ->
+diamond :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
+diamond s i c f n = defineView "diamond" $ \() ->
     g_ (cardProps i Diamond c f n)
-      (boundingBox i >>
+      (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
-          One -> diam cx 45
-          Two -> diam cx 35 >> diam cx 60
-          Three -> diam cx 20 >> diam cx 45 >> diam cx 70))
+          One -> diam cx 40
+          Two -> diam cx 30 >> diam cx 55
+          Three -> diam cx 15 >> diam cx 40 >> diam cx 65))
             where cx = 26
                   diam :: Int -> Int -> ReactElementM [SomeStoreAction] ()
                   diam x y = path_ ["d" @= unwords [
@@ -178,16 +180,16 @@ diamond i c f n = defineView "diamond" $ \() ->
                                            "L", show (x + 20), show (y + 10),
                                            "L", show (x + 10), show (y + 0), "z"]
                                     , "stroke" @= jsColor c
-                                    , "fill-opacity" @= fillAlpha f
+                                    , "fillOpacity" @= fillAlpha f
                                     , "fill" @= jsColor c] ""
 
-diamond_ :: Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
-diamond_ i c f n = view (diamond i c f n) () mempty
+diamond_ :: Bool -> Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
+diamond_ s i c f n = view (diamond s i c f n) () mempty
 
-circle :: Int -> Color -> Fill -> Number -> ReactView ()
-circle i c f n = defineView "circle" $ \() ->
+circle :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
+circle s i c f n = defineView "circle" $ \() ->
     g_ (cardProps i Circle c f n)
-      (boundingBox i >>
+      (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
            One -> circ 35 50
            Two -> circ 35 40 >> circ 35 65
@@ -196,78 +198,78 @@ circle i c f n = defineView "circle" $ \() ->
                 circ x y = React.Flux.circle_ [ "r" $= "10"
                                               , "cx" @= (show x)
                                               , "cy" @= (show y)
-                                              , "fill-opacity" @= fillAlpha f
+                                              , "fillOpacity" @= fillAlpha f
                                               , "fill" @= jsColor c
                                               , "stroke" @= jsColor c
                                               , "key" @= ("circle" ++ show i ++ show x ++ show y)] ""
 
 cardProps i s c f n = [
          "className" @= ("shape" ++ show s ++ " color" ++ show c ++ " fill" ++ show f ++ " number" ++ show n)
-       , "key" @= (show i ++ show s)
+       , "key" @= (show i ++ show s ++ show c ++ show c ++ show f ++ show n)
        , "transform" @= t]
-         where x = show $ i `mod` (4 :: Int) * 70
-               y = show $ (floor (toRational i / 4.0)) `mod` (4 :: Int) * 100
+         where x = show $ i `mod` (3 :: Int) * 70
+               y = show $ (floor (toRational i / 3.0)) `mod` (4 :: Int) * 100
                t = "translate(" ++ x ++ "," ++ y ++ ")"
 
-circle_ :: Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
-circle_ i c f n = view (circle i c f n) () mempty
+circle_ :: Bool -> Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
+circle_ s i c f n = view (circle s i c f n) () mempty
 
-box :: Int -> Color -> Fill -> Number -> ReactView ()
-box i c f n = defineView "box" $ \() ->
+box :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
+box s i c f n = defineView "box" $ \() ->
     g_ (cardProps i Box c f n)
-      (boundingBox i >>
+      (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
-         One -> rect cx 45
-         Two -> rect cx 35 >> rect cx 60
-         Three -> rect cx 20 >> rect cx 45 >> rect cx 70))
+         One -> rect cx 40
+         Two -> rect cx 30 >> rect cx 55
+         Three -> rect cx 15 >> rect cx 40 >> rect cx 65))
             where rect :: Int -> Int -> ReactElementM [SomeStoreAction] ()
                   rect x y = rect_ [ "x" @= (show x)
                                    , "y" @= (show y)
                                    , "width" $= "20"
-                                   , "fill-opacity" @= fillAlpha f
+                                   , "fillOpacity" @= fillAlpha f
                                    , "fill" @= jsColor c
                                    , "stroke" @= jsColor c
                                    , "height" $= "20" ] "rect"
                   cx = 26
 
-boundingBox :: Int -> ReactElementM [SomeStoreAction] ()
-boundingBox k = rect_ [ "key" @= k
-                      , "stroke" $= "black"
-                      , "fill" $= "white"
-                      , "stroke-width" $= "2"
-                      , "x" $= "5"
-                      , "y" $= "5"
-                      , "width" $= "60"
-                      , "height" $= "90"] ""
+boundingBox :: Bool -> String -> ReactElementM [SomeStoreAction] ()
+boundingBox s k = rect_ [ "key" @= k
+                        , "stroke" $= "black"
+                        , "fill" $= if not s then "white" else "rgb(200, 250, 250)"
+                        , "strokeWidth" $= "2"
+                        , "x" $= "5"
+                        , "y" $= "5"
+                        , "width" $= "60"
+                        , "height" $= "90"] ""
 
-box_ :: Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
-box_ i c f n = view (box i c f n) () mempty
+box_ :: Bool -> Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
+box_ s i c f n = view (box s i c f n) () mempty
 
-
--- game :: ReactView Game
--- game = defineView "game" $ \(Game _ d _) ->
-    -- mapM_ (div_ >>= card) d
-
-cardsStore :: ReactStore Game
+cardsStore :: ReactStore GameState
 cardsStore = do
   let g = runRand initGame (mkStdGen 0)
-  mkStore $ fst g
+  mkStore (GameState (fst g) [(gameDealt (fst g) !! 0), (gameDealt (fst g) !! 1)])
 
 data GameAction = GameCreate
 
-instance StoreData Game where
-  type StoreAction Game = GameAction
-  transform action (Game a d c) = do
+data GameState = GameState {
+    gameStateGame :: Game
+  , gameStateSelection :: [Card]
+  } deriving (Show)
+
+instance StoreData GameState where
+  type StoreAction GameState = GameAction
+  transform action (GameState g s) = do
     newGame <- case action of
                  GameCreate -> initGame
-    return newGame
+    return (GameState newGame [gameDealt g !! 0])
 
 -- main
 main :: IO ()
 main = do
   g <- initGame
   putStrLn $ show g
-  reactRender "flux-test" cardsApp g
+  reactRender "flux-test" cardsApp (GameState g [gameDealt g !! 0, gameDealt g !! 1, gameDealt g !! 2])
   -- x <- reactRenderToString True cardsApp g
   -- putStrLn (T.unpack x)
 
