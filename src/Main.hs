@@ -66,11 +66,15 @@ data Game = Game {
 
 instance Show Game where
   show (Game a (a1:a2:a3:b1:b2:b3:c1:c2:c3:d1:d2:d3:[]) c) =
+    unlines [show a,
     unlines (map unwords [
         map show [a1, a2, a3]
       , map show [b1, b2, b3]
       , map show [c1, c2, c3]
       , map show [d1, d2, d3]])
+    , show c
+    , "all: " ++ show (length a)
+    , "consumed: " ++ show (length c)]
   show _ = "Error: Malformed card game"
 
 instance Enum Card where
@@ -90,13 +94,19 @@ allCards = [Card c n s f
 initGame :: (MonadRandom m) => m Game
 initGame = do
   dealt <- getDealt
-  return $ Game allCards dealt []
+  return $ Game (filter (\x -> x `notElem` dealt) allCards) dealt []
      where getDealt :: (MonadRandom m) => m [Card]
            getDealt = do
              d <- (map toEnum) `fmap` randomList 12
              if null $ filter isSolution (allCombinations d)
                 then getDealt
                 else return d
+
+removeCards :: [Card] -> Game -> Game
+removeCards cs (Game a d r) = Game newAll newDealt newUsed
+  where newAll = filter (\x -> x `notElem` newDealt) a
+        newDealt = (filter (\x -> x `notElem` cs) d) ++ (take 3 a)
+        newUsed = r ++ cs
 
 -- logic
 
@@ -154,7 +164,7 @@ jsColor Blue = "rgb(0, 0, 255)"
 cardsApp :: ReactView ()
 cardsApp = defineControllerView "cards app" cardsStore $ \cardState () ->
   div_ $ do
-    h1_ "Welcome to cards game. This is cards game. Test 123"
+    h1_ "Welcome to cards game. This is cards game."
     svg_ [ "width" $= "1000"
          , "height" $= "1000" ] (mapM_ card_ $ (zip [1..] (map (\c -> (c `elem` (gameStateSelection cardState), c)) (gameDealt $ gameStateGame cardState))))
 
@@ -268,12 +278,26 @@ instance StoreData GameState where
   transform action (GameState g s) = do
     newGameState <- case action of
                       GameCreate -> do
-                                       g <- initGame
-                                       return $ GameState g []
+                                      ng <- initGame
+                                      putStrLn $ "GameCreate with the following state:"
+                                      putStrLn $ show g
+                                      putStrLn $ show s
+                                      return $ GameState ng []
                       (GameSelect c) -> do putStrLn $ "selected card: " ++ show c
-                                           return $ if c `elem` s
-                                             then GameState g (filter (/=c) s)
-                                             else GameState g (if length s < 3 then c:s else s)
+                                           if c `elem` s
+                                             then return $ GameState g (filter (/=c) s)
+                                             else (if length s == 2
+                                                       then if isSolution (c, s !! 0, s !! 1)
+                                                               then do
+                                                                 let ng = (GameState (removeCards (c:s) g) [])
+                                                                 putStrLn "GameSelect, new state:"
+                                                                 putStrLn (show ng)
+                                                                 return ng
+                                                               -- TODO Define game logic correctly
+                                                               else do
+                                                                 putStrLn "No solution, deselect all"
+                                                                 return (GameState g [])
+                                                       else return (GameState g (c:s)))
     putStrLn $ show newGameState
     return newGameState
 
@@ -284,7 +308,7 @@ dispatchGame a = [SomeStoreAction cardsStore a]
 -- main
 main :: IO ()
 main = do
-  reactRender "flux-test" cardsApp ()
+  reactRender "flux-cards" cardsApp ()
   -- x <- reactRenderToString True cardsApp g
   -- putStrLn (T.unpack x)
 
