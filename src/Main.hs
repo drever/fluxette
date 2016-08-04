@@ -308,7 +308,7 @@ dispatchGame a = [SomeStoreAction cardsStore a]
 -- main
 main :: IO ()
 main = do
-  reactRender "flux-cards" cardsApp ()
+  reactRender "fluxette" cardsApp ()
   -- x <- reactRenderToString True cardsApp g
   -- putStrLn (T.unpack x)
 
