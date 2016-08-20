@@ -168,25 +168,28 @@ jsLightColor Blue = "rgb(0, 0, 153)"
 
 
 cardsApp :: ReactView ()
-cardsApp = defineControllerView "cards app" cardsStore $ \cardState () ->
+cardsApp = defineControllerView "cards app" cardsStore $ \cardState () -> do
   div_ $ do
-    h1_ "Welcome to cards game. This is cards game."
     svg_ [ "width" $= "1000"
-         , "height" $= "1000" ] (mapM_ card_ $ (zip [1..] (map (\c -> (c `elem` (gameStateSelection cardState), c)) (gameDealt $ gameStateGame cardState))))
+         , "height" $= "1000" ] (mapM_ card_ $ (zip [1..] (cardSelection cardState)))
+  where cardSelection :: GameState -> [(Bool, Card)]
+        cardSelection s = map (\c -> (c `elem` (gameStateSelection s), c)) (gameDealt $ gameStateGame s)
+  -- TODO ((div_ ((length . gameConsumed . gameStateGame $ cardState))) () mempty)
+
 
 card :: ReactView (Int, (Bool, Card))
 card = defineView "card" $ \(i, (s, c)) ->
   case c of
-    Card c n Diamond f -> logo_ s i c f n -- diamond_ s i c f n
-    Card c n Box f -> box_ s i c f n
-    Card c n Circle f -> Main.circle_ s i c f n
+    Card c n Diamond f -> diamond_ s i (c, f, n) -- logo_ s i c f n
+    Card c n Box f -> box_ s i (c, f, n)
+    Card c n Circle f -> Main.circle_ s i (c, f, n)
 
 card_ :: (Int, (Bool, Card)) -> ReactElementM eventHandler ()
 card_ !a@(i, (s, c)) = viewWithIKey card i a mempty
 
-logo :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
-logo s i c f n = defineView "logo" $ \() ->
-    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Diamond f))):cardProps i Diamond c f n)
+logo :: Bool -> Int -> (Color, Fill, Number) -> ReactView ()
+logo s i fs@(c, f, n) = defineView "logo" $ \() ->
+    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Diamond f))):cardProps i Diamond fs)
       (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
           One -> haskellLogo cx 40 c f
@@ -194,9 +197,9 @@ logo s i c f n = defineView "logo" $ \() ->
           Three -> haskellLogo cx 15 c f >> haskellLogo cx 40 c f >> haskellLogo cx 65 c f))
             where cx = 23
 
-diamond :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
-diamond s i c f n = defineView "diamond" $ \() ->
-    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Diamond f))):cardProps i Diamond c f n)
+diamond :: Bool -> Int -> (Color, Fill, Number) -> ReactView ()
+diamond s i fs@(c, f, n) = defineView "diamond" $ \() ->
+    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Diamond f))):cardProps i Diamond fs)
       (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
           One -> diam cx 40
@@ -266,15 +269,15 @@ haskellLogo x y c f = g_ ["transform" @= t] $ angle_ >> lambda_ >> equal_
         strokeWidth = show (1.0 / logoscale')
         t = "translate(" ++ show x ++ ", " ++ show y ++ ")"
 
-diamond_ :: Bool -> Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
-diamond_ s i c f n = view (diamond s i c f n) () mempty
+diamond_ :: Bool -> Int -> (Color, Fill, Number) -> ReactElementM eventHandler ()
+diamond_ s i (c, f, n) = view (diamond s i (c, f, n)) () mempty
 
-logo_ :: Bool -> Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
-logo_ s i c f n = view (logo s i c f n) () mempty
+logo_ :: Bool -> Int -> (Color, Fill, Number) -> ReactElementM eventHandler ()
+logo_ s i (c, f, n) = view (logo s i (c, f, n)) () mempty
 
-circle :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
-circle s i c f n = defineView "circle" $ \() ->
-    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Circle f))):cardProps i Circle c f n)
+circle :: Bool -> Int -> (Color, Fill, Number) -> ReactView ()
+circle s i (c, f, n) = defineView "circle" $ \() ->
+    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Circle f))):cardProps i Circle (c, f, n))
       (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
            One -> circ 35 50
@@ -289,7 +292,7 @@ circle s i c f n = defineView "circle" $ \() ->
                                               , "stroke" @= jsColor c
                                               , "key" @= ("circle" ++ show i ++ show x ++ show y)] mempty
 
-cardProps i s c f n = [
+cardProps i s (c, f, n) = [
          "className" @= ("shape" ++ show s ++ " color" ++ show c ++ " fill" ++ show f ++ " number" ++ show n)
        , "key" @= (show i ++ show s ++ show c ++ show c ++ show f ++ show n)
        , "transform" @= t]
@@ -297,12 +300,12 @@ cardProps i s c f n = [
                y = show $ (floor (toRational i / 3.0)) `mod` (4 :: Int) * 100
                t = "translate(" ++ x ++ "," ++ y ++ ")"
 
-circle_ :: Bool -> Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
-circle_ s i c f n = view (circle s i c f n) () mempty
+circle_ :: Bool -> Int -> (Color, Fill, Number) -> ReactElementM eventHandler ()
+circle_ s i fs = view (circle s i fs) () mempty
 
-box :: Bool -> Int -> Color -> Fill -> Number -> ReactView ()
-box s i c f n = defineView "box" $ \() ->
-    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Box f))):cardProps i Box c f n)
+box :: Bool -> Int -> (Color, Fill, Number) -> ReactView ()
+box s i (c, f, n) = defineView "box" $ \() ->
+    g_ ((onClick $ \_ _ -> dispatchGame (GameSelect (Card c n Box f))):cardProps i Box (c, f, n))
       (boundingBox s (show i ++ show c ++ show f ++ show n) >>
         (case n of
          One -> rect cx 40
@@ -328,8 +331,8 @@ boundingBox s k = rect_ [ "key" @= k
                         , "width" $= "60"
                         , "height" $= "90"] mempty
 
-box_ :: Bool -> Int -> Color -> Fill -> Number -> ReactElementM eventHandler ()
-box_ s i c f n = view (box s i c f n) () mempty
+box_ :: Bool -> Int -> (Color, Fill, Number) -> ReactElementM eventHandler ()
+box_ s i (c, f, n) = view (box s i (c, f, n)) () mempty
 
 cardsStore :: ReactStore GameState
 cardsStore = do
