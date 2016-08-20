@@ -17,7 +17,12 @@ cabal-version:       >=1.10
 
 executable fluxette
   main-is:             Main.hs
-  -- other-modules:       
+  other-modules:
+        Model
+      , Store
+      , Dispatcher
+      , Main
+      , Views
   -- other-extensions:    
   build-depends:       base >=4.7
                      , mtl
