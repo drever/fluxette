@@ -10,6 +10,7 @@ module Model (
   , isSolution
   , initGame
   , removeCards
+  , solutionCards
   ) where
 
 import Control.DeepSeq
@@ -112,9 +113,7 @@ removeCards :: [Card] -> Game -> Game
 removeCards cs (Game a d r) = Game newAll newDealt newUsed
   where newAll = filter (\x -> x `notElem` newDealt) a
         newUsed = r ++ cs
-        newDealt = rmCards ++ (take 3 (solutionCards d a))
-        rmCards = (filter (\x -> x `notElem` cs) d)
-
+        newDealt = (filter (\x -> x `notElem` cs) d) ++ (take 3 (solutionCards d a))
 
 isSolution :: (Card, Card, Card) -> Bool
 isSolution ((Card c1 n1 s1 f1), (Card c2 n2 s2 f2), (Card c3 n3 s3 f3)) =
@@ -153,15 +152,3 @@ newNumber = do
 
 randomList :: MonadRandom m => Int -> m [Int]
 randomList n = execStateT (sequence $ replicate n newNumber) []
-
--- test data
-
-testsolutions :: [(Card, Card, Card)]
-testsolutions = [ (Card Red One Diamond Full, Card Green Two Diamond Full, Card Blue Three Diamond Full)
-                , (Card Blue One Diamond Half, Card Blue One Circle Empty, Card Blue One Box Full)]
-
-testNonSolutions :: [(Card, Card, Card)]
-testNonSolutions = [ (Card Red One Diamond Full, Card Red One Box Empty, Card Green Two Box Empty),
-                     (Card Green One Diamond Full, Card Green One Diamond Empty, Card Green Two Diamond Empty) ]
-
-

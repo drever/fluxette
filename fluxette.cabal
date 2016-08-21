@@ -34,3 +34,26 @@ executable fluxette
                      , random-shuffle
   hs-source-dirs:      src
   default-language:    Haskell2010
+
+executable tests
+  main-is: Test.hs
+  other-modules:
+        Model
+      , Store
+      , Dispatcher
+      , Main
+      , Views
+  build-depends:       base >=4.7
+                     , mtl
+                     , MonadRandom
+                     , transformers-compat
+                     , react-flux
+                     , text
+                     , deepseq
+                     , random-shuffle
+                     , hspec
+                     , QuickCheck
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
+ 

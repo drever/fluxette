@@ -43,7 +43,6 @@ instance StoreData GameState where
                                                         putStrLn "GameSelect, new state:"
                                                         putStrLn (show ng)
                                                         return ng
-                                                  -- TODO Define game logic correctly
                                                   else do
                                                         putStrLn "No solution, deselect all"
                                                         return (GameState g [])
