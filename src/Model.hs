@@ -11,6 +11,7 @@ module Model (
   , initGame
   , removeCards
   , solutionCards
+  , solutions
   ) where
 
 import Control.DeepSeq
