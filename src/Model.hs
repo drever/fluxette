@@ -19,6 +19,7 @@ import Data.Typeable (Typeable)
 import Control.Monad.Random
 import Control.Monad.State
 import Data.List
+import System.Random.Shuffle
 
 data Color = Red | Green | Blue deriving (Enum, Eq, NFData, Generic)
 data Number = One | Two | Three deriving (Enum, Eq, NFData, Generic)
@@ -98,7 +99,8 @@ cardMaxBound = (length cardDeck) - 1
 initGame :: (MonadRandom m) => m Game
 initGame = do
   dealt <- getDealt
-  return $ Game (filter (\x -> x `notElem` dealt) cardDeck) dealt []
+  a <- shuffleM cardDeck
+  return $ Game (filter (\x -> x `notElem` dealt) a) dealt []
      where getDealt :: (MonadRandom m) => m [Card]
            getDealt = do
              d <- (map toEnum) `fmap` randomList 12
@@ -109,8 +111,9 @@ initGame = do
 removeCards :: [Card] -> Game -> Game
 removeCards cs (Game a d r) = Game newAll newDealt newUsed
   where newAll = filter (\x -> x `notElem` newDealt) a
-        newDealt = (filter (\x -> x `notElem` cs) d) ++ (take 3 a)
         newUsed = r ++ cs
+        newDealt = rmCards ++ (take 3 (solutionCards d a))
+        rmCards = (filter (\x -> x `notElem` cs) d)
 
 
 isSolution :: (Card, Card, Card) -> Bool
@@ -125,8 +128,20 @@ isSolution ((Card c1 n1 s1 f1), (Card c2 n2 s2 f2), (Card c3 n3 s3 f3)) =
 allCombinations :: Enum a => [a] -> [(a, a, a)]
 allCombinations [] = []
 allCombinations (x:[]) = []
-allCombinations xs = [(xs !! x, xs !! y, xs !! z) | x <- [0 .. length xs - 3 ], y <- [succ x..length xs - 2], z <- [succ y.. length xs - 1]]
-solutions xs = filter isSolution (allCombinations xs)
+allCombinations xs = [(xs !! x, xs !! y, xs !! z)
+  | x <- [0 .. length xs - 3 ]
+  , y <- [succ x .. length xs - 2]
+  , z <- [succ y .. length xs - 1]]
+
+solutions :: [Card] -> [(Card, Card, Card)]
+solutions cs = filter isSolution (allCombinations cs)
+
+solutionCards :: [Card] -> [Card] -> [Card]
+solutionCards d a = foldr (\c as ->
+                          if null $ solutions (c:d)
+                             then as
+                             else c:as
+                          ) [] a
 
 newNumber :: (MonadRandom m, MonadState [Int] m) => m ()
 newNumber = do
