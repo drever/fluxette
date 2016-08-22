@@ -30,7 +30,7 @@ cardsApp :: ReactView ()
 cardsApp = defineControllerView "cards app" cardsStore $ \cardState () -> do
   div_ $ do
     svg_ [ "width" $= "1000"
-         , "height" $= "1000" ] (mapM_ card_ $ (zip [1..] (cardSelection cardState)))
+         , "height" $= "1000" ] (mapM_ card_ $ (zip [0..] (cardSelection cardState)))
   where cardSelection :: GameState -> [(Bool, Card)]
         cardSelection s = map (\c -> (c `elem` (gameStateSelection s), c)) (gameDealt $ gameStateGame s)
   -- TODO ((div_ ((length . gameConsumed . gameStateGame $ cardState))) () mempty)

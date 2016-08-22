@@ -57,8 +57,8 @@ instance Show Shape where
   show Box = "b"
 
 instance Show Fill where
-  show Empty = "C"
-  show Half = "E"
+  show Empty = "E"
+  show Half = "C"
   show Full = "O"
 
 instance Show Card where
