@@ -114,7 +114,8 @@ removeCards :: [Card] -> Game -> Game
 removeCards cs (Game a d r) = Game newAll newDealt newUsed
   where newAll = filter (\x -> x `notElem` newDealt) a
         newUsed = r ++ cs
-        newDealt = (filter (\x -> x `notElem` cs) d) ++ (take 3 (solutionCards d a))
+        newDealt = rmCards ++ (take 3 (solutionCards rmCards a))
+        rmCards = (filter (\x -> x `notElem` cs) d)
 
 isSolution :: (Card, Card, Card) -> Bool
 isSolution ((Card c1 n1 s1 f1), (Card c2 n2 s2 f2), (Card c3 n3 s3 f3)) =

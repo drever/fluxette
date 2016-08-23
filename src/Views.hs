@@ -38,7 +38,8 @@ cardsApp = defineControllerView "cards app" cardsStore $ \cardState () -> do
 card :: ReactView (Int, (Bool, Card))
 card = defineView "card" $ \(i, (s, c)) ->
   case c of
-    Card c n Diamond f -> diamond_ s i (c, f, n) -- logo_ s i c f n
+    Card c n Diamond f -> --logo_ s i (c, f, n)
+                          diamond_ s i (c, f, n)
     Card c n Box f -> box_ s i (c, f, n)
     Card c n Circle f -> Views.circle_ s i (c, f, n)
 
