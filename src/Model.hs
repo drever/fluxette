@@ -22,6 +22,7 @@ import Control.Monad.Random
 import Control.Monad.State
 import Data.List
 import System.Random.Shuffle
+import Data.Aeson
 
 data Color = Red | Green | Blue deriving (Enum, Eq, NFData, Generic)
 data Number = One | Two | Three deriving (Enum, Eq, NFData, Generic)
@@ -88,6 +89,19 @@ instance Enum Card where
   fromEnum c = case findIndex (==c) cardDeck of
                  Nothing -> error $ "fromEnum{Game}: Card does not exist: " ++ show c
                  (Just i) -> i
+
+instance ToJSON Card
+instance FromJSON Card
+instance ToJSON Game
+instance FromJSON Game
+instance FromJSON Fill
+instance ToJSON Fill
+instance FromJSON Color
+instance ToJSON Color
+instance FromJSON Shape
+instance ToJSON Shape
+instance FromJSON Number
+instance ToJSON Number
 
 cardDeck = [Card c n s f
               | c <- [Red .. Blue],

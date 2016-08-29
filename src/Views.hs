@@ -29,11 +29,11 @@ jsLightColor Blue = "rgb(0, 0, 153)"
 cardsApp :: ReactView ()
 cardsApp = defineControllerView "cards app" cardsStore $ \cardState () -> do
   div_ $ do
-    svg_ [ "width" $= "1000"
-         , "height" $= "1000" ] (mapM_ card_ $ (zip [0..] (cardSelection cardState)))
+    svg_ [ "width" $= "300"
+         , "height" $= "400" ] (mapM_ card_ $ (zip [0..] (cardSelection cardState)))
+    button_ [(onClick $ \_ _ -> dispatchGame GameGetCurrentGame)] "Load current game"
   where cardSelection :: GameState -> [(Bool, Card)]
         cardSelection s = map (\c -> (c `elem` (gameStateSelection s), c)) (gameDealt $ gameStateGame s)
-  -- TODO ((div_ ((length . gameConsumed . gameStateGame $ cardState))) () mempty)
 
 card :: ReactView (Int, (Bool, Card))
 card = defineView "card" $ \(i, (s, c)) ->

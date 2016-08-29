@@ -1,38 +1,51 @@
-{-# LANGUAGE TypeFamilies, DeriveGeneric, DeriveAnyClass, OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies, DeriveGeneric, DeriveAnyClass, OverloadedStrings, LambdaCase #-}
 module Store where
 
 import React.Flux
+import React.Flux.Ajax
 import Control.DeepSeq
 import GHC.Generics (Generic)
 import Data.Typeable (Typeable)
 import qualified Data.Text as T
 import Control.Monad.Random
+import Data.Aeson
 
 import Model
 
 data GameAction =
-    GameCreate
-  | GameSelect Card deriving (Typeable, Generic, NFData)
+    GameCreate Game
+  | GameSelect Card
+  | GameGetCurrentGame
+  | GameError String
+  deriving (Typeable, Generic, NFData)
 
 data GameState = GameState {
     gameStateGame :: Game
   , gameStateSelection :: [Card]
   } deriving (Show, Typeable, Generic, NFData)
 
+instance FromJSON GameState
+instance ToJSON GameState
+
 instance StoreData GameState where
   type StoreAction GameState = GameAction
-  transform action (GameState g s) = do
+  transform action gs@(GameState g s) = do
     newGameState <- case action of
-                      GameCreate -> gameCreateAction
+                      GameCreate g -> gameSetAction g
+                      GameError s -> gameError s
                       (GameSelect c) -> gameSelectAction c
+                      GameGetCurrentGame -> getCurrentGame gs
     putStrLn $ show newGameState
     return newGameState
-      where gameCreateAction = do
-                                  ng <- initGame
-                                  putStrLn $ "GameCreate with the following state:"
+      where gameSetAction g = do
+                                  putStrLn $ "Set the game with state: "
                                   putStrLn $ show g
-                                  putStrLn $ show s
-                                  return $ GameState ng []
+                                  return $ GameState g []
+            gameError s = do
+              putStrLn "Error while performing ajax call"
+              putStrLn s
+              g <- initGame
+              return (GameState g [])
             gameSelectAction c = do putStrLn $ "selected card: " ++ show c
                                     if c `elem` s
                                      then return $ GameState g (filter (/=c) s)
@@ -47,6 +60,12 @@ instance StoreData GameState where
                                                         putStrLn "No solution, deselect all"
                                                         return (GameState g [])
                                              else return (GameState g (c:s)))
+            getCurrentGame :: GameState -> IO GameState
+            getCurrentGame g = do putStrLn $ "Get the current game"
+                                  jsonAjax NoTimeout "GET" "currentGame" [] g $ \case
+                                    Left (_, msg) -> return [SomeStoreAction (mkStore g) (GameError $ T.unpack msg)]
+                                    Right g' -> return [SomeStoreAction (mkStore (GameState g' [])) (GameCreate g')]
+                                  return g
 
 
 
