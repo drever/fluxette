@@ -22,6 +22,8 @@ data GameAction =
   | GameSelect Card
   | GameGetCurrentGame
   | GameError String
+  | GameWasUpdated Game
+  | GameRequestNewGame GameState
   deriving (Typeable, Generic, NFData)
 
 data GameState = GameState {
@@ -40,16 +42,29 @@ instance StoreData GameState where
   type StoreAction GameState = GameAction
   transform action gs@(GameState g s) = do
     newGameState <- case action of
-                      GameCreate g -> gameSetAction g
+                      GameCreate g -> gameCreate g
                       GameError s -> gameError s
-                      (GameSelect c) -> gameSelectAction c
+                      GameSelect c -> gameSelectAction c
                       GameGetCurrentGame -> getCurrentGame gs
+                      GameWasUpdated g -> gameWasUpdated g
+                      GameRequestNewGame g -> do gameRequestNewGame
+                                                 return g
     putStrLn $ show newGameState
     return newGameState
-      where gameSetAction g = do
+      where gameCreate g = do
                                   putStrLn $ "Set the game with state: "
                                   putStrLn $ show g
                                   return $ GameState g []
+            gameRequestNewGame = do
+              jsonAjax NoTimeout "POST" "newGame" [] g $ \case
+                  Left (_, msg) -> return [SomeStoreAction (cardsStore) (GameError $ T.unpack msg)]
+                  Right g' -> return [SomeStoreAction (mkStore (GameState g' [])) (GameWasUpdated g')]
+
+
+            gameWasUpdated g = do
+              putStrLn "Game was updated:"
+              putStrLn $ show g
+              return (GameState g [])
             gameError s = do
               putStrLn "Error while performing ajax call"
               putStrLn s
@@ -57,18 +72,21 @@ instance StoreData GameState where
               return (GameState g [])
             gameSelectAction c = do putStrLn $ "selected card: " ++ show c
                                     if c `elem` s
-                                     then return $ GameState g (filter (/=c) s)
-                                     else (if length s == 2
-                                             then if isSolution (c, s !! 0, s !! 1)
-                                                  then do
-                                                        let ng = (GameState (removeCards (c:s) g) [])
-                                                        putStrLn "GameSelect, new state:"
-                                                        putStrLn (show ng)
-                                                        return ng
-                                                  else do
-                                                        putStrLn "No solution, deselect all"
-                                                        return (GameState g [])
-                                             else return (GameState g (c:s)))
+                                             then return $ GameState g (filter (/=c) s)
+                                             else (if length s == 2
+                                                     then if isSolution (c, s !! 0, s !! 1)
+                                                          then do
+                                                                let ng = (GameState (removeCards (c:s) g) [])
+                                                                putStrLn "GameSelect, new state:"
+                                                                putStrLn (show ng)
+                                                                jsonAjax NoTimeout "POST" "setCurrentGame" [] g $ \case
+                                                                    Left (_, msg) -> return [SomeStoreAction (mkStore ng) (GameError $ T.unpack msg)]
+                                                                    Right g' -> return [SomeStoreAction (mkStore ng) (GameWasUpdated g')]
+                                                                return ng
+                                                          else do
+                                                                putStrLn "No solution, deselect all"
+                                                                return (GameState g [])
+                                                     else return (GameState g (c:s)))
             getCurrentGame :: GameState -> IO GameState
             getCurrentGame g = do putStrLn $ "Get the current game"
                                   jsonAjax NoTimeout "GET" "currentGame" [] g $ \case
