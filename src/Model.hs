@@ -14,6 +14,8 @@ module Model (
   , solutions
   ) where
 
+import Test.QuickCheck
+
 import Control.DeepSeq
 import GHC.Generics (Generic)
 import Data.Typeable (Typeable)
@@ -29,6 +31,18 @@ data Number = One | Two | Three deriving (Enum, Eq, NFData, Generic)
 data Shape = Circle | Diamond | Box deriving (Enum, Eq, NFData, Generic)
 data Fill = Empty | Half | Full deriving (Enum, Eq, NFData, Generic)
 
+instance Arbitrary Color where
+  arbitrary = toEnum <$> choose (0, 2)
+
+instance Arbitrary Shape where
+  arbitrary = toEnum <$> choose (0, 2)
+
+instance Arbitrary Number where
+  arbitrary = toEnum <$> choose (0, 2)
+
+instance Arbitrary Fill where
+  arbitrary = toEnum <$> choose (0, 2)
+
 data Card = Card {
     cardColor :: Color
   , cardNumber :: Number
@@ -36,11 +50,18 @@ data Card = Card {
   , cardFill :: Fill
   } deriving (Eq, Typeable, NFData, Generic)
 
+instance Arbitrary Card where
+  arbitrary = Card <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
 data Game = Game {
     gameAll :: [Card]
   , gameDealt :: [Card]
   , gameConsumed :: [Card]
   } deriving (Generic, NFData)
+
+instance Arbitrary Game where
+  arbitrary = Game <$> arbitrary <*> arbitrary <*> arbitrary
+-- TODO The three sets must be disjunct
 
 instance Show Color where
   show Red = "R"
@@ -80,7 +101,7 @@ instance Show Game where
     , show c
     , "all: " ++ show (length a)
     , "consumed: " ++ show (length c)]
-  show _ = "Error: Malformed card game"
+  show (Game a d c) = "Game { gameAll = " ++ show a ++ ", gameDealt = " ++ show d ++ ", gameConsumed = " ++ show c ++ " }"
 
 instance Enum Card where
   toEnum i = if i >= cardMinBound && i <= cardMaxBound
@@ -125,9 +146,9 @@ initGame = do
                 else return d
 
 removeCards :: [Card] -> Game -> Game
-removeCards cs (Game a d r) = Game newAll newDealt newUsed
+removeCards cs (Game a d u) = Game newAll newDealt newUsed
   where newAll = filter (\x -> x `notElem` newDealt) a
-        newUsed = r ++ cs
+        newUsed = u ++ cs
         newDealt = rmCards ++ (take 3 (solutionCards rmCards a))
         rmCards = (filter (\x -> x `notElem` cs) d)
 
