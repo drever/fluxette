@@ -3,14 +3,19 @@ module Store where
 
 import React.Flux
 import React.Flux.Ajax
+import React.Flux.Addons.Servant
+
 import Control.DeepSeq
 import GHC.Generics (Generic)
 import Data.Typeable (Typeable)
 import qualified Data.Text as T
 import Control.Monad.Random
+import Data.Proxy
 import Data.Aeson
 
 import Model
+
+import Routes
 
 data GameAction =
     GameCreate Game
@@ -26,6 +31,10 @@ data GameState = GameState {
 
 instance FromJSON GameState
 instance ToJSON GameState
+
+cfg :: ApiRequestConfig FluxetteAPI
+cfg = ApiRequestConfig "localhost" NoTimeout
+
 
 instance StoreData GameState where
   type StoreAction GameState = GameAction

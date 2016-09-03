@@ -23,12 +23,17 @@ executable fluxette
       , Dispatcher
       , Main
       , Views
+      , Routes
   -- other-extensions:    
   build-depends:       base >=4.7
                      , mtl
                      , MonadRandom
                      , transformers-compat
                      , react-flux
+                     , react-flux-servant
+                     , servant-server
+                     , servant-blaze
+                     , either
                      , text
                      , deepseq
                      , random-shuffle
