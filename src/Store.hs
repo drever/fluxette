@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, DeriveGeneric, DeriveAnyClass, OverloadedStrings, LambdaCase, ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies, DeriveGeneric, DeriveAnyClass, OverloadedStrings, LambdaCase #-}
 module Store where
 
 import React.Flux
@@ -46,15 +46,15 @@ instance StoreData GameState where
     return newGameState
       where gameRequestNewGame = do
               putStrLn "gameRequestNewGame"
-              jsonAjax NoTimeout "POST" "newGame" [] g $ \case
+              jsonAjax NoTimeout "GET" "newGame" [] g $ \case
                   Left (_, msg) -> return [SomeStoreAction cardsStore (GameError $ T.unpack msg)]
-                  Right (g' :: Game) -> return [SomeStoreAction cardsStore (GameWasUpdated (Game [] [] []))]
+                  Right g' -> return [SomeStoreAction cardsStore (GameWasUpdated g')]
 
             getCurrentGame = do
               putStrLn $ "getCurrentGame"
               jsonAjax NoTimeout "GET" "currentGame" [] g $ \case
                   Left (_, msg) -> return [SomeStoreAction cardsStore (GameError $ T.unpack msg)]
-                  Right (g' :: Game) -> return [SomeStoreAction cardsStore (GameWasUpdated g')]
+                  Right g' -> return [SomeStoreAction cardsStore (GameWasUpdated g')]
 
             gameWasUpdated g = do
               putStrLn "gameWasUpdated"
@@ -66,17 +66,17 @@ instance StoreData GameState where
 
             gameSelectAction c = do putStrLn $ "selected card: " ++ show c
                                     if c `elem` s
-                                             then deselect c
-                                             else select c
+                                        then deselect c
+                                        else select c
             deselect c = return $ GameState g (filter (/=c) s)
             select c = if length s == 2
                          then if isSolution (c, s !! 0, s !! 1)
                               then do
                                     let ng = (GameState (removeCards (c:s) g) [])
                                     putStrLn "GameSelect, new state:"
-                                    jsonAjax NoTimeout "POST" "setCurrentGame" [] g $ \case
-                                        Left (_, msg) -> return [SomeStoreAction (mkStore ng) (GameError $ T.unpack msg)]
-                                        Right g' -> return [SomeStoreAction (mkStore ng) (GameWasUpdated g')]
+                                    jsonAjax NoTimeout "PUT" "setCurrentGame" [] (removeCards (c:s) g) $ \case
+                                        Left (_, msg) -> return [SomeStoreAction cardsStore (GameError $ T.unpack msg)]
+                                        Right g' -> return [SomeStoreAction cardsStore (GameWasUpdated g')]
                                     return ng
                               else do
                                     putStrLn "No solution, deselect all"
