@@ -59,6 +59,7 @@ data Game = Game {
   , gameConsumed :: [Card]
   } deriving (Generic, NFData)
 
+
 instance Arbitrary Game where
   arbitrary = Game <$> arbitrary <*> arbitrary <*> arbitrary
 -- TODO The three sets must be disjunct

@@ -32,7 +32,7 @@ cardsApp = defineControllerView "cards app" cardsStore $ \cardState () -> do
     svg_ [ "width" $= "300"
          , "height" $= "400" ] (mapM_ card_ $ (zip [0..] (cardSelection cardState)))
     button_ [(onClick $ \_ _ -> dispatchGame GameGetCurrentGame)] "Load current game"
-    button_ [(onClick $ \_ _ -> dispatchGame (GameRequestNewGame cardState))] "New game"
+    button_ [(onClick $ \_ _ -> dispatchGame GameRequestNewGame)] "New game"
   where cardSelection :: GameState -> [(Bool, Card)]
         cardSelection s = map (\c -> (c `elem` (gameStateSelection s), c)) (gameDealt $ gameStateGame s)
 

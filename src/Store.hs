@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, DeriveGeneric, DeriveAnyClass, OverloadedStrings, LambdaCase #-}
+{-# LANGUAGE TypeFamilies, DeriveGeneric, DeriveAnyClass, OverloadedStrings, LambdaCase, ScopedTypeVariables #-}
 module Store where
 
 import React.Flux
@@ -15,17 +15,15 @@ import Data.Aeson
 
 import Model
 
-import Routes
-
 data GameAction =
-    GameCreate Game
-  | GameSelect Card
+    GameSelect Card
   | GameGetCurrentGame
   | GameError String
   | GameWasUpdated Game
-  | GameRequestNewGame GameState
+  | GameRequestNewGame
   deriving (Typeable, Generic, NFData)
 
+-- data UpdatePending = NoUpdatePending | UpdatePending Text
 data GameState = GameState {
     gameStateGame :: Game
   , gameStateSelection :: [Card]
@@ -34,66 +32,56 @@ data GameState = GameState {
 instance FromJSON GameState
 instance ToJSON GameState
 
-cfg :: ApiRequestConfig FluxetteAPI
-cfg = ApiRequestConfig "localhost" NoTimeout
-
-
 instance StoreData GameState where
   type StoreAction GameState = GameAction
   transform action gs@(GameState g s) = do
     newGameState <- case action of
-                      GameCreate g -> gameCreate g
-                      GameError s -> gameError s
+                      GameError s -> do gameError s
+                                        return (GameState g [])
                       GameSelect c -> gameSelectAction c
-                      GameGetCurrentGame -> getCurrentGame gs
+                      GameGetCurrentGame -> getCurrentGame >> (return gs)
                       GameWasUpdated g -> gameWasUpdated g
-                      GameRequestNewGame g -> do gameRequestNewGame
-                                                 return g
+                      GameRequestNewGame -> gameRequestNewGame >> (return gs)
     putStrLn $ show newGameState
     return newGameState
-      where gameCreate g = do
-                                  putStrLn $ "Set the game with state: "
-                                  putStrLn $ show g
-                                  return $ GameState g []
-            gameRequestNewGame = do
+      where gameRequestNewGame = do
+              putStrLn "gameRequestNewGame"
               jsonAjax NoTimeout "POST" "newGame" [] g $ \case
-                  Left (_, msg) -> return [SomeStoreAction (cardsStore) (GameError $ T.unpack msg)]
-                  Right g' -> return [SomeStoreAction (mkStore (GameState g' [])) (GameWasUpdated g')]
+                  Left (_, msg) -> return [SomeStoreAction cardsStore (GameError $ T.unpack msg)]
+                  Right (g' :: Game) -> return [SomeStoreAction cardsStore (GameWasUpdated (Game [] [] []))]
 
+            getCurrentGame = do
+              putStrLn $ "getCurrentGame"
+              jsonAjax NoTimeout "GET" "currentGame" [] g $ \case
+                  Left (_, msg) -> return [SomeStoreAction cardsStore (GameError $ T.unpack msg)]
+                  Right (g' :: Game) -> return [SomeStoreAction cardsStore (GameWasUpdated g')]
 
             gameWasUpdated g = do
-              putStrLn "Game was updated:"
-              putStrLn $ show g
+              putStrLn "gameWasUpdated"
               return (GameState g [])
+
             gameError s = do
               putStrLn "Error while performing ajax call"
               putStrLn s
-              g <- initGame
-              return (GameState g [])
+
             gameSelectAction c = do putStrLn $ "selected card: " ++ show c
                                     if c `elem` s
-                                             then return $ GameState g (filter (/=c) s)
-                                             else (if length s == 2
-                                                     then if isSolution (c, s !! 0, s !! 1)
-                                                          then do
-                                                                let ng = (GameState (removeCards (c:s) g) [])
-                                                                putStrLn "GameSelect, new state:"
-                                                                putStrLn (show ng)
-                                                                jsonAjax NoTimeout "POST" "setCurrentGame" [] g $ \case
-                                                                    Left (_, msg) -> return [SomeStoreAction (mkStore ng) (GameError $ T.unpack msg)]
-                                                                    Right g' -> return [SomeStoreAction (mkStore ng) (GameWasUpdated g')]
-                                                                return ng
-                                                          else do
-                                                                putStrLn "No solution, deselect all"
-                                                                return (GameState g [])
-                                                     else return (GameState g (c:s)))
-            getCurrentGame :: GameState -> IO GameState
-            getCurrentGame g = do putStrLn $ "Get the current game"
-                                  jsonAjax NoTimeout "GET" "currentGame" [] g $ \case
-                                    Left (_, msg) -> return [SomeStoreAction (mkStore g) (GameError $ T.unpack msg)]
-                                    Right g' -> return [SomeStoreAction (mkStore (GameState g' [])) (GameCreate g')]
-                                  return g
-
+                                             then deselect c
+                                             else select c
+            deselect c = return $ GameState g (filter (/=c) s)
+            select c = if length s == 2
+                         then if isSolution (c, s !! 0, s !! 1)
+                              then do
+                                    let ng = (GameState (removeCards (c:s) g) [])
+                                    putStrLn "GameSelect, new state:"
+                                    jsonAjax NoTimeout "POST" "setCurrentGame" [] g $ \case
+                                        Left (_, msg) -> return [SomeStoreAction (mkStore ng) (GameError $ T.unpack msg)]
+                                        Right g' -> return [SomeStoreAction (mkStore ng) (GameWasUpdated g')]
+                                    return ng
+                              else do
+                                    putStrLn "No solution, deselect all"
+                                    return (GameState g [])
+                         else return (GameState g (c:s))
 
 
 cardsStore :: ReactStore GameState

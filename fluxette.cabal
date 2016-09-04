@@ -23,7 +23,6 @@ executable fluxette
       , Dispatcher
       , Main
       , Views
-      , Routes
   -- other-extensions:    
   build-depends:       base >=4.7
                      , mtl
@@ -36,6 +35,7 @@ executable fluxette
                      , either
                      , text
                      , deepseq
+                     , QuickCheck
                      , random-shuffle
                      , aeson
   hs-source-dirs:      src
