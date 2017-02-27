@@ -30,7 +30,6 @@ executable fluxette
                      , transformers-compat
                      , react-flux
                      , react-flux-servant
-                     , servant-server
                      , servant-blaze
                      , either
                      , text
