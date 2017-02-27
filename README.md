@@ -5,3 +5,7 @@ An implementation of [Set](https://en.wikipedia.org/wiki/Set_(game)), a game whe
 # Getting started
 
 The setup works analogous to the setup described in [react-flux](https://bitbucket.org/wuzzeb/react-flux). 
+
+# Backend
+
+There is also a backend with servant which serves the game state with a servant server (https://github.com/drever/fluxetteback). The idea is that there is a single game session and multiple players can play in competition modes. It is half finished and the development is currently on hold.
