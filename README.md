@@ -6,6 +6,14 @@ An implementation of [Set](https://en.wikipedia.org/wiki/Set_(game)), a game whe
 
 The setup works analogous to the setup described in [react-flux](https://bitbucket.org/wuzzeb/react-flux). 
 
+The steps 
+
+    stack setup
+    stack build
+    make
+    
+should produce the javascript code in `js-build`. Open `index.html` to see the result in the browser.
+
 # Backend
 
 There is also a backend with servant which serves the game state with a servant server (https://github.com/drever/fluxetteback). The idea is that there is a single game session and multiple players can play in competition modes. It is half finished and the development is currently on hold [TODO.md](https://github.com/drever/fluxetteback/blob/master/TODO.md).
